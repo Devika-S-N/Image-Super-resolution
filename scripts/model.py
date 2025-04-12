@@ -53,7 +53,7 @@ class TransformerBlock(nn.Module):
         return x
 
 class SimpleViTSR(nn.Module):
-    def __init__(self, in_channels=3, embed_dim=96, patch_size=4, num_blocks=4, upscale=4):
+    def __init__(self, in_channels=3, embed_dim=96, patch_size=4, num_blocks=8, upscale=4):
         super().__init__()
         self.patch_embed = PatchEmbedding(in_channels, patch_size, embed_dim)
         

@@ -1,18 +1,45 @@
+
 import torch
-from scripts.model import SimpleViTSR
+#from scripts.model import SimpleViTSR
+from scripts.model_custom_swinir import SwinIR
 from scripts.dataset import SRDataset
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import random_split
 
 # Step 1: Load data
 lr_path = "data/DIV2K_train_LR_bicubic/X4"
 hr_path = "data/DIV2K_train_HR"
 dataset = SRDataset(lr_path, hr_path)
-loader = DataLoader(dataset, batch_size=4, shuffle=True)
+#loader = DataLoader(dataset, batch_size=4, shuffle=True)
+
+# 70% training, 30% unused or for validation
+train_size = int(0.5 * len(dataset))
+val_size = len(dataset) - train_size
+
+train_dataset, _ = random_split(dataset, [train_size, val_size])
+
+loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+
+
 
 # Step 2: Create model
-model = SimpleViTSR(upscale=4)
+model = SwinIR(
+    upscale=4,
+    img_size=(48, 48),        # Match your cropped input image size
+    patch_size=1,
+    in_chans=3,
+    embed_dim=60,             # Or change to 96 for stronger features
+    depths=[2, 2, 2, 2],      # Can be [6, 6, 6, 6] for stronger SwinIR
+    num_heads=[6, 6, 6, 6],
+    window_size=8,
+    mlp_ratio=2.0,
+    upsampler='pixelshuffle',  # or 'pixelshuffledirect'
+    img_range=1.0,
+    resi_connection='1conv'
+)
+#model = SimpleViTSR(upscale=4)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
@@ -54,4 +81,5 @@ for epoch in range(num_epochs):
     # Show average loss for this epoch
     print(f"Epoch [{epoch+1}] finished with avg loss: {running_loss / len(loader):.4f}")
 
-torch.save(model.state_dict(), "model_weights.pth")
+#torch.save(model.state_dict(), "model_weights.pth")
+torch.save(model.state_dict(), "model_weights_SWIN.pth")
