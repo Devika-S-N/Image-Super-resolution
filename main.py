@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import random_split
+from scripts.losses import VGGPerceptualLoss
 
 # Step 1: Load data
 lr_path = "data/DIV2K_train_LR_bicubic/X4"
@@ -44,11 +45,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
 # Step 3: Define loss function and optimizer
-criterion = nn.L1Loss()  # "How far off are we?"
+#criterion = nn.L1Loss()  # "How far off are we?"
+l1_loss = nn.L1Loss()
+perceptual_loss = VGGPerceptualLoss(weight=0.01)  # You can tune this weight
 optimizer = optim.Adam(model.parameters(), lr=1e-4)  # "How do we get better?"
 
 # Step 4: Train for a few epochs
-num_epochs = 3
+num_epochs = 1
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -63,7 +66,10 @@ for epoch in range(num_epochs):
         # Compute loss — how wrong was the guess?
         print("SR shape:", sr.shape)
         print("HR shape:", hr.shape)
-        loss = criterion(sr, hr)
+        #loss = criterion(sr, hr)
+        loss_l1 = l1_loss(sr, hr)
+        loss_perc = perceptual_loss(sr, hr)
+        loss = loss_l1 + loss_perc
 
         # Backward pass — figure out how to improve
         optimizer.zero_grad()
@@ -76,7 +82,8 @@ for epoch in range(num_epochs):
 
         # Print progress every few batches
         if i % 50 == 0:
-            print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{i}], Loss: {loss.item():.4f}")
+            #print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{i}], Loss: {loss.item():.4f}")
+            print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{i}], L1 Loss: {loss_l1.item():.4f}, Perc Loss: {loss_perc.item():.4f}, Total Loss: {loss.item():.4f}")
 
     # Show average loss for this epoch
     print(f"Epoch [{epoch+1}] finished with avg loss: {running_loss / len(loader):.4f}")
