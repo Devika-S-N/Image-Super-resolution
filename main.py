@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import random_split
-from scripts.losses import VGGPerceptualLoss
 from scripts.losses import VGGPerceptualLoss, SSIMLoss
 
 # Start time
@@ -80,7 +79,7 @@ for epoch in range(num_epochs):
         loss_perc = perceptual_loss(sr, hr)
         loss_ssim = ssim_loss(sr, hr)
 
-        loss = loss_l1 + loss_perc + loss_ssim
+        loss = loss_l1 + loss_perc + 0.3 * loss_ssim
 
         # Backward pass — figure out how to improve
         optimizer.zero_grad()
