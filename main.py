@@ -1,6 +1,6 @@
 import time  # <-- added to track execution time
 import torch
-#from scripts.model import SimpleViTSR
+import os
 from scripts.model_custom_swinir import SwinIR
 from scripts.dataset import SRDataset
 from torch.utils.data import DataLoader
@@ -58,45 +58,58 @@ ssim_loss = SSIMLoss().to(device)
 #perceptual_loss = VGGPerceptualLoss(weight=0.01)  # You can tune this weight
 optimizer = optim.Adam(model.parameters(), lr=1e-4)  # "How do we get better?"
 
+checkpoint_path = "checkpoint.pth"
+total_epochs = 3  # Total epochs you want to train
+num_epochs_per_run = 1
+start_epoch = 0  # default starting epoch
+
+if os.path.exists(checkpoint_path):
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    start_epoch = checkpoint["epoch"] + 1  # resume training from the next epoch
+    print(f"Resuming training from epoch {start_epoch}...")
+else:
+    print("No checkpoint found, starting fresh training.")
+
+
 # Step 4: Train for a few epochs
-num_epochs = 3
-for epoch in range(num_epochs):
+for epoch in range(start_epoch, min(start_epoch + num_epochs_per_run, total_epochs)):
     model.train()
     running_loss = 0.0
 
     for i, (lr, hr) in enumerate(loader):
         lr = lr.to(device)
         hr = hr.to(device)
-
-        # Forward pass — make a guess
+        
+        # Forward pass
         sr = model(lr)
-
-        # Compute loss — how wrong was the guess?
-        print("SR shape:", sr.shape)
-        print("HR shape:", hr.shape)
-        #loss = criterion(sr, hr)
+        
+        # Compute loss (e.g., combined L1, perceptual, SSIM losses)
         loss_l1 = l1_loss(sr, hr)
         loss_perc = perceptual_loss(sr, hr)
         loss_ssim = ssim_loss(sr, hr)
-
         loss = loss_l1 + loss_perc + 0.3 * loss_ssim
-
-        # Backward pass — figure out how to improve
+        
         optimizer.zero_grad()
         loss.backward()
-
-        # Update model weights
         optimizer.step()
-
+        
         running_loss += loss.item()
-
-        # Print progress every few batches
+        
         if i % 50 == 0:
-            #print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{i}], Loss: {loss.item():.4f}")
-            print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{i}], L1 Loss: {loss_l1.item():.4f}, Perc Loss: {loss_perc.item():.4f}, Total Loss: {loss.item():.4f}")
+            print(f"Epoch [{epoch+1}/{total_epochs}], Batch [{i}], L1 Loss: {loss_l1.item():.4f}, Perc Loss: {loss_perc.item():.4f}, Total Loss: {loss.item():.4f}")
 
-    # Show average loss for this epoch
     print(f"Epoch [{epoch+1}] finished with avg loss: {running_loss / len(loader):.4f}")
+
+    # Save the checkpoint after every epoch
+    torch.save({
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "loss": running_loss / len(loader),
+    }, checkpoint_path)
+    print(f"Checkpoint saved at epoch {epoch + 1}")
 
 #torch.save(model.state_dict(), "model_weights.pth")
 torch.save(model.state_dict(), "model_weights_SWIN.pth")
