@@ -1,4 +1,4 @@
-
+import time  # <-- added to track execution time
 import torch
 #from scripts.model import SimpleViTSR
 from scripts.model_custom_swinir import SwinIR
@@ -8,6 +8,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import random_split
 from scripts.losses import VGGPerceptualLoss
+from scripts.losses import VGGPerceptualLoss, SSIMLoss
+
+# Start time
+start_time = time.time()
 
 # Step 1: Load data
 lr_path = "data/DIV2K_train_LR_bicubic/X4"
@@ -42,16 +46,21 @@ model = SwinIR(
 )
 #model = SimpleViTSR(upscale=4)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 model = model.to(device)
+
 
 # Step 3: Define loss function and optimizer
 #criterion = nn.L1Loss()  # "How far off are we?"
-l1_loss = nn.L1Loss()
-perceptual_loss = VGGPerceptualLoss(weight=0.01)  # You can tune this weight
+l1_loss = nn.L1Loss().to(device)
+perceptual_loss = VGGPerceptualLoss(weight=0.01).to(device)
+ssim_loss = SSIMLoss().to(device)
+#l1_loss = nn.L1Loss()
+#perceptual_loss = VGGPerceptualLoss(weight=0.01)  # You can tune this weight
 optimizer = optim.Adam(model.parameters(), lr=1e-4)  # "How do we get better?"
 
 # Step 4: Train for a few epochs
-num_epochs = 1
+num_epochs = 3
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -69,7 +78,9 @@ for epoch in range(num_epochs):
         #loss = criterion(sr, hr)
         loss_l1 = l1_loss(sr, hr)
         loss_perc = perceptual_loss(sr, hr)
-        loss = loss_l1 + loss_perc
+        loss_ssim = ssim_loss(sr, hr)
+
+        loss = loss_l1 + loss_perc + loss_ssim
 
         # Backward pass — figure out how to improve
         optimizer.zero_grad()
@@ -90,3 +101,7 @@ for epoch in range(num_epochs):
 
 #torch.save(model.state_dict(), "model_weights.pth")
 torch.save(model.state_dict(), "model_weights_SWIN.pth")
+# End time and execution time
+end_time = time.time()
+execution_time = end_time - start_time
+print(f"\nTotal execution time: {execution_time:.2f} seconds")
