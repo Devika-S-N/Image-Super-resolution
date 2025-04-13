@@ -59,8 +59,8 @@ ssim_loss = SSIMLoss().to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)  # "How do we get better?"
 
 checkpoint_path = "checkpoint.pth"
-total_epochs = 3  # Total epochs you want to train
-num_epochs_per_run = 1
+total_epochs = 500  # Total epochs you want to train
+num_epochs_per_run = 150
 start_epoch = 0  # default starting epoch
 
 if os.path.exists(checkpoint_path):
