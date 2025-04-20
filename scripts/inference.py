@@ -19,8 +19,8 @@ psnr_list, ssim_list = [], []
 upscale = 4
 lr_path = "data/DIV2K_train_LR_bicubic/X4"
 hr_path = "data/DIV2K_train_HR"
-model_path = "model_weights.pth"  # Change if saved differently
-num_samples_to_show = 3
+model_path = "model_weights_SWIN.pth"  # Change if saved differently
+num_samples_to_show = 200
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 import os
@@ -48,11 +48,7 @@ model = SwinIR(
     img_range=1.0,
     resi_connection='1conv'
 )
-#model.load_state_dict(torch.load(model_path, map_location=device))
-#model = model.to(device)
-#model.eval()
-
-model.load_state_dict(torch.load("model_weights_SWIN.pth", map_location=device))
+model.load_state_dict(torch.load(model_path, map_location=device))
 model = model.to(device)
 model.eval()
 
@@ -100,7 +96,7 @@ for i, (lr, hr) in enumerate(loader):
 
     plt.tight_layout()
     plt.savefig(f"results/sample_{i}.png")
-    plt.show()
+    #plt.show()
 
     if i + 1 == num_samples_to_show:
         break
