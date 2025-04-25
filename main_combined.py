@@ -27,7 +27,7 @@ loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
 
 
 # Step 2: Create model
-model_selection = int(input("\n Select the model for training from the below options: \n 1. --> Basic Transformer Model \n 2. --> SWIN Transformer Model\n 3. --> CNN Model \n -->"))
+model_selection = int(input("\n Select the model for training from the below options: \n 1 --> Basic Transformer Model \n 2 --> SWIN Transformer Model\n 3 --> CNN Model \n -->"))
 num_epochs_input = int(input("\n Enter the number of training epochs to run: \n -->"))
 
 
