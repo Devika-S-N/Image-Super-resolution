@@ -1,119 +1,134 @@
-import time  # <-- added to track execution time
+import time
+import json
 import torch
 import os
+import argparse
 from scripts.model_custom_swinir import SwinIR
+from scripts.model import SimpleViTSR
+from scripts.model_srgan import SRGAN_Generator
 from scripts.dataset import SRDataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import random_split
 from scripts.losses import VGGPerceptualLoss, SSIMLoss
+import warnings
+warnings.filterwarnings("ignore")
 
-# Start time
-start_time = time.time()
+def main():
+    parser = argparse.ArgumentParser(description="Train a super-resolution model based on config.json")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--transformer', action='store_true', help='Use SwinIR Transformer model')
+    group.add_argument('--basic', action='store_true', help='Use SimpleViTSR basic transformer model')
+    group.add_argument('--cnn', action='store_true', help='Use SRGAN CNN model')
+    parser.add_argument('--config', type=str, default='config.json', help='Path to JSON configuration file')
+    args = parser.parse_args()
 
-# Step 1: Load data
-lr_path = "data/DIV2K_train_LR_bicubic/X4"
-hr_path = "data/DIV2K_train_HR"
-dataset = SRDataset(lr_path, hr_path)
-#loader = DataLoader(dataset, batch_size=4, shuffle=True)
+    with open(args.config, 'r') as f:
+        config = json.load(f)
 
-# 70% training, 30% unused or for validation
-train_size = int(0.5 * len(dataset))
-val_size = len(dataset) - train_size
+    device_str = config.get("device", "cuda")
+    device = torch.device(device_str if device_str == "cuda" and torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
 
-train_dataset, _ = random_split(dataset, [train_size, val_size])
+    dirs = config.get("dirs", {})
+    lr_train = dirs.get("lr_train")
+    hr_train = dirs.get("hr_train")
+    dataset = SRDataset(lr_train, hr_train)
+    train_size = int(0.5 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, _ = random_split(dataset, [train_size, val_size])
+    batch_size = config.get("train", {}).get("batch_size", 4)
+    loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+    if args.transformer:
+        model_cfg = config.get("model", {})
+        params    = model_cfg.get("params", {})
+        model = SwinIR(
+            upscale         = model_cfg.get("upscale", 4),
+            img_size        = tuple(params.get("img_size", (48, 48))),     
+            patch_size      = params.get("patch_size", 1),
+            in_chans        = params.get("in_chans", 3),
+            embed_dim       = params.get("embed_dim", 60),                   
+            depths          = params.get("depths", [2, 2, 2, 2]),        
+            num_heads       = params.get("num_heads", [6, 6, 6, 6]),
+            window_size     = params.get("window_size", 8),
+            mlp_ratio       = params.get("mlp_ratio", 2.0),
+            upsampler       = params.get("upsampler", "pixelshuffle"),
+            img_range       = params.get("img_range", 1.0),
+            resi_connection = params.get("resi_connection", "1conv")
+        )
+        checkpoint_path = "checkpoint_swinir.pth"
+        weights_path = "model_weights_swinir.pth"
+    elif args.basic:
+        model = SimpleViTSR(upscale=config.get("model", {}).get("upscale", 4))
+        checkpoint_path = "checkpoint_basic.pth"
+        weights_path = "model_weights_basic.pth"
+    elif args.cnn:
+        model = SRGAN_Generator(
+            in_channels=3,
+            num_res_blocks=16,
+            upscale_factor=config.get("model", {}).get("upscale", 4)
+        )
+        checkpoint_path = "checkpoint_cnn.pth"
+        weights_path = "model_weights_cnn.pth"
+    else:
+        raise ValueError("Please specify one of --transformer, --basic, or --cnn")
 
+    model = model.to(device)
+    loss_weights = config.get("train", {}).get("loss_weights", {})
+    l1_w = loss_weights.get("l1", 1.0)
+    perc_w = loss_weights.get("perceptual", 1.0)
+    ssim_w = loss_weights.get("ssim", 0.3)
+    l1_loss_fn = nn.L1Loss().to(device)
+    perc_loss_fn = VGGPerceptualLoss(weight=perc_w).to(device)
+    ssim_loss_fn = SSIMLoss().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=config.get("train", {}).get("learning_rate", 1e-4))
 
+    total_epochs = config.get("train", {}).get("total_epochs", 1000)
+    epochs_per_run = config.get("train", {}).get("epochs_per_run", total_epochs)
+    start_epoch = 0
 
-# Step 2: Create model
-model = SwinIR(
-    upscale=4,
-    img_size=(48, 48),        # Match your cropped input image size
-    patch_size=1,
-    in_chans=3,
-    embed_dim=60,             # Or change to 96 for stronger features
-    depths=[2, 2, 2, 2],      # Can be [6, 6, 6, 6] for stronger SwinIR
-    num_heads=[6, 6, 6, 6],
-    window_size=8,
-    mlp_ratio=2.0,
-    upsampler='pixelshuffle',  # or 'pixelshuffledirect'
-    img_range=1.0,
-    resi_connection='1conv'
-)
-#model = SimpleViTSR(upscale=4)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device)
-model = model.to(device)
+    if os.path.exists(checkpoint_path):
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(ckpt.get("model_state_dict", {}))
+        optimizer.load_state_dict(ckpt.get("optimizer_state_dict", {}))
+        start_epoch = ckpt.get("epoch", 0) + 1
+        print(f"Resuming training from epoch {start_epoch}...")
+    else:
+        print("No checkpoint found, starting fresh training.")
 
+    t0 = time.time()
+    for epoch in range(start_epoch, min(start_epoch + epochs_per_run, total_epochs)):
+        model.train()
+        running_loss = 0.0
+        for i, (lr_img, hr_img) in enumerate(loader):
+            lr_img, hr_img = lr_img.to(device), hr_img.to(device)
+            sr = model(lr_img)
+            loss_l1 = l1_w * l1_loss_fn(sr, hr_img)
+            loss_perc = perc_loss_fn(sr, hr_img)
+            loss_ssim = ssim_w * ssim_loss_fn(sr, hr_img)
+            loss = loss_l1 + loss_perc + loss_ssim
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+            if i % 50 == 0:
+                print(f"Epoch [{epoch+1}/{total_epochs}] Batch [{i}] - L1: {loss_l1.item():.4f}, Perc: {loss_perc.item():.4f}, SSIM: {loss_ssim.item():.4f}, Total: {loss.item():.4f}")
 
-# Step 3: Define loss function and optimizer
-#criterion = nn.L1Loss()  # "How far off are we?"
-l1_loss = nn.L1Loss().to(device)
-perceptual_loss = VGGPerceptualLoss(weight=0.01).to(device)
-ssim_loss = SSIMLoss().to(device)
-#l1_loss = nn.L1Loss()
-#perceptual_loss = VGGPerceptualLoss(weight=0.01)  # You can tune this weight
-optimizer = optim.Adam(model.parameters(), lr=1e-4)  # "How do we get better?"
+        avg_loss = running_loss / len(loader)
+        print(f"Epoch [{epoch+1}] completed with avg loss: {avg_loss:.4f}")
 
-checkpoint_path = "checkpoint.pth"
-total_epochs = 1000  # Total epochs you want to train
-num_epochs_per_run = 150
-start_epoch = 0  # default starting epoch
+        torch.save({
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "loss": avg_loss
+        }, checkpoint_path)
+        print(f"Checkpoint saved at epoch {epoch+1}")
 
-if os.path.exists(checkpoint_path):
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    start_epoch = checkpoint["epoch"] + 1  # resume training from the next epoch
-    print(f"Resuming training from epoch {start_epoch}...")
-else:
-    print("No checkpoint found, starting fresh training.")
+    torch.save(model.state_dict(), weights_path)
+    print(f"Model weights saved to {weights_path}")
+    print(f"Total training time: {time.time() - t0:.2f} seconds")
 
-
-# Step 4: Train for a few epochs
-for epoch in range(start_epoch, min(start_epoch + num_epochs_per_run, total_epochs)):
-    model.train()
-    running_loss = 0.0
-
-    for i, (lr, hr) in enumerate(loader):
-        lr = lr.to(device)
-        hr = hr.to(device)
-        
-        # Forward pass
-        sr = model(lr)
-        
-        # Compute loss (e.g., combined L1, perceptual, SSIM losses)
-        loss_l1 = l1_loss(sr, hr)
-        loss_perc = perceptual_loss(sr, hr)
-        loss_ssim = ssim_loss(sr, hr)
-        loss = loss_l1 + loss_perc + 0.3 * loss_ssim
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-        running_loss += loss.item()
-        
-        if i % 50 == 0:
-            print(f"Epoch [{epoch+1}/{total_epochs}], Batch [{i}], L1 Loss: {loss_l1.item():.4f}, Perc Loss: {loss_perc.item():.4f}, Total Loss: {loss.item():.4f}")
-
-    print(f"Epoch [{epoch+1}] finished with avg loss: {running_loss / len(loader):.4f}")
-
-    # Save the checkpoint after every epoch
-    torch.save({
-        "epoch": epoch,
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "loss": running_loss / len(loader),
-    }, checkpoint_path)
-    print(f"Checkpoint saved at epoch {epoch + 1}")
-
-#torch.save(model.state_dict(), "model_weights.pth")
-torch.save(model.state_dict(), "model_weights_SWIN.pth")
-# End time and execution time
-end_time = time.time()
-execution_time = end_time - start_time
-print(f"\nTotal execution time: {execution_time:.2f} seconds")
+if __name__ == '__main__':
+    main()
