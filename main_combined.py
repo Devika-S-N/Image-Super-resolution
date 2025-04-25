@@ -1,6 +1,7 @@
 import time  
 import torch
 import os
+import sys
 from scripts.model_custom_swinir import SwinIR
 from scripts.model import SimpleViTSR
 from scripts.model_srgan import SRGAN_Generator
@@ -61,8 +62,7 @@ elif model_selection == 3:
     checkpoint_path = "checkpoint_CNN.pth"
 
 else:
-    print("\n Invalid selection")
-    exit()
+    sys.exit("Exiting due to invalid selection")
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
