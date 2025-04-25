@@ -1,0 +1,46 @@
+{
+  "device": "cuda",
+  "dirs": {
+    "lr_train": "data/DIV2K_train_LR_bicubic/X4",
+    "hr_train": "data/DIV2K_train_HR",
+    "lr_test": "Video/LR_Frames",
+    "video_lr_train": "Video/LR_Frames",
+    "video_hr_train": "Video/HR_Frames"
+  },
+  "model": {
+    "checkpoint": "checkpoint.pth",
+    "model_path": "model_weights_SWIN.pth",
+    "architecture": "SwinIR",
+    "upscale": 4,
+    "params": {
+      "img_size": [48, 48],
+      "patch_size": 1,
+      "in_chans": 3,
+      "embed_dim": 60,
+      "depths": [2, 2, 2, 2],
+      "num_heads": [6, 6, 6, 6],
+      "window_size": 8,
+      "mlp_ratio": 2.0,
+      "upsampler": "pixelshuffle",
+      "img_range": 1.0,
+      "resi_connection": "1conv"
+    }
+  },
+  "train": {
+    "batch_size": 4,
+    "learning_rate": 0.0001,
+    "total_epochs": 500,
+    "epochs_per_run": 150,
+    "loss_weights": {
+      "l1": 1.0,
+      "perceptual": 1.0,
+      "ssim": 0.3
+    }
+  },
+  "inference": {
+    "results_dir_train": "results_train",
+    "results_dir_test": "results_test",
+	"num_samples_test" : 50,
+	"num_samples_train": 50  
+  }
+}
