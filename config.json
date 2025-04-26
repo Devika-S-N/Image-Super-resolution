@@ -8,8 +8,12 @@
     "video_hr_train": "Video/HR_Frames"
   },
   "model": {
-    "checkpoint": "checkpoint.pth",
-    "model_path": "model_weights_SWIN.pth",
+    "checkpoint_SWIN": "checkpoint_swinir.pth",
+    "checkpoint_BASIC": "checkpoint_basic.pt",
+    "checkpoint_CNN": "checkpoint_cnn.pth",
+    "model_path_SWIN": "model_weights_swinir.pth",
+    "model_path_BASIC": "model_weights_basic.pth",
+    "model_path_CNN": "model_weights_cnn.pth",      
     "architecture": "SwinIR",
     "upscale": 4,
     "params": {
@@ -27,7 +31,7 @@
     }
   },
   "train": {
-    "batch_size": 1,
+    "batch_size": 4,
     "learning_rate": 0.0001,
     "total_epochs": 500,
     "epochs_per_run": 1,
