@@ -94,7 +94,7 @@ def decode():
 
 
 def encode(framerate):
-    results_dir = 'results_train'
+    results_dir = 'results_video'
     video_dir = 'Video'
     if not os.path.isdir(results_dir):
         print(f"Error: '{results_dir}' folder not found.", file=sys.stderr)
