@@ -8,10 +8,10 @@
     "video_hr_train": "Video/HR_Frames"
   },
   "model": {
-    "checkpoint_SWIN": "checkpoint_swinir.pth",
+    "checkpoint_SWIN": "checkpoint.pth",
     "checkpoint_BASIC": "checkpoint_basic.pt",
     "checkpoint_CNN": "checkpoint_cnn.pth",
-    "model_path_SWIN": "model_weights_swinir.pth",
+    "model_path_SWIN": "model_weights_SWIN.pth",
     "model_path_BASIC": "model_weights_basic.pth",
     "model_path_CNN": "model_weights_cnn.pth",      
     "architecture": "SwinIR",
@@ -44,7 +44,7 @@
   "inference": {
     "results_dir_train": "results_train",
     "results_dir_test": "results_test",
-	"num_samples_test" : 50,
-	"num_samples_train": 50  
+	"num_samples_test" : 300,
+	"num_samples_train": 300  
   }
 }

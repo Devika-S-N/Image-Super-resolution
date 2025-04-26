@@ -120,7 +120,7 @@ def main():
         mode = "TEST"
         lr_dir = cfg["dirs"]["lr_test"]
         out_dir = root / "results_test"
-        n = 3
+        n        = cfg["inference"]["num_samples_test"]
         loader = DataLoader(SRDataset_modified(lr_dir), batch_size=1, shuffle=False)
 
     elif args.train_eval:
@@ -128,7 +128,7 @@ def main():
         lr_dir = cfg["dirs"]["lr_train"]
         hr_dir = cfg["dirs"]["hr_train"]
         out_dir = root / "results_train"
-        n = 3
+        n        = cfg["inference"]["num_samples_train"]
         loader = DataLoader(SRDataset(lr_dir, hr_dir), batch_size=1, shuffle=False)
 
     else:  # video-mode
@@ -136,7 +136,7 @@ def main():
         lr_dir = cfg["dirs"]["video_lr_train"]
         hr_dir = cfg["dirs"]["video_hr_train"]
         out_dir = root / "results_video"
-        n = 3
+        n        = cfg["inference"]["num_samples_train"]
         loader = DataLoader(SRDataset(lr_dir, hr_dir), batch_size=1, shuffle=False)
 
     print(f" Mode: {mode}")
