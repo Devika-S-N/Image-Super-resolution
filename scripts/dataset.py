@@ -22,11 +22,9 @@ class SRDataset(Dataset):
         lr_img = Image.open(lr_path).convert("RGB")
         hr_img = Image.open(hr_path).convert("RGB")
 
-        # Get center crop of LR and corresponding HR
         lr_crop = TF.center_crop(lr_img, (self.crop_size, self.crop_size))
         hr_crop = TF.center_crop(hr_img, (self.crop_size * self.upscale, self.crop_size * self.upscale))
 
-        # Convert to tensors
         lr_tensor = TF.to_tensor(lr_crop)
         hr_tensor = TF.to_tensor(hr_crop)
 

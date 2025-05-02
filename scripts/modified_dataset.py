@@ -16,11 +16,9 @@ class SRDataset_modified(Dataset):
     def __getitem__(self, idx):
         lr_path = os.path.join(self.lr_dir, self.filenames[idx])
         lr_img = Image.open(lr_path).convert("RGB")
-
-        # Get center crop of LR 
+ 
         lr_crop = TF.center_crop(lr_img, (self.crop_size, self.crop_size))
 
-        # Convert to tensors
         lr_tensor = TF.to_tensor(lr_crop)
 
         return lr_tensor

@@ -1,17 +1,3 @@
-"""
-A script to either:
-  - Decode mode (`--decode`): downscale the high-res video in the `Video` folder by 4×, save the low-res clip back into `Video`, and dump high-/low-res frames into `Video/HR_Frames` and `Video/LR_Frames`.
-  - Encode mode (`--encode`): stitch PNG frames from the `results` folder into a video saved in `Video`.
-
-Usage:
-  python downscale_video.py --decode
-  python downscale_video.py --encode [-r FPS]
-
-Options:
-  --decode           Run in decode mode
-  --encode           Run in encode mode
-  -r, --framerate    Frame rate for encoding (default: 25)
-"""
 import argparse
 import os
 import subprocess

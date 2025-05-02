@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import json
 import os
@@ -131,7 +130,7 @@ def main():
         n        = cfg["inference"]["num_samples_train"]
         loader = DataLoader(SRDataset(lr_dir, hr_dir), batch_size=1, shuffle=False)
 
-    else:  # video-mode
+    else:
         mode = "VIDEO"
         lr_dir = cfg["dirs"]["video_lr_train"]
         hr_dir = cfg["dirs"]["video_hr_train"]

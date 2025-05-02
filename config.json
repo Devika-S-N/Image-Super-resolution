@@ -11,7 +11,7 @@
     "checkpoint_SWIN": "checkpoint.pth",
     "checkpoint_BASIC": "checkpoint_basic.pt",
     "checkpoint_CNN": "checkpoint_cnn.pth",
-    "model_path_SWIN": "model_weights_SWIN.pth",
+    "model_path_SWIN": "model_weights_swinir.pth",
     "model_path_BASIC": "model_weights_basic.pth",
     "model_path_CNN": "model_weights_cnn.pth",      
     "architecture": "SwinIR",
@@ -33,8 +33,8 @@
   "train": {
     "batch_size": 4,
     "learning_rate": 0.0001,
-    "total_epochs": 500,
-    "epochs_per_run": 3,
+    "total_epochs": 1000,
+    "epochs_per_run": 1,
     "loss_weights": {
       "l1": 1.0,
       "perceptual": 1.0,
@@ -44,7 +44,7 @@
   "inference": {
     "results_dir_train": "results_train",
     "results_dir_test": "results_test",
-	"num_samples_test" : 300,
-	"num_samples_train": 300  
+	"num_samples_test" : 30,
+	"num_samples_train": 30  
   }
 }
